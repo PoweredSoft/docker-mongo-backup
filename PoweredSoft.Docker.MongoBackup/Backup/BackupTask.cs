@@ -206,7 +206,6 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
         {
             var uri = BuildUriWithDatabase(databaseName);
 
-            var result = "";
             using (var proc = new Process())
             {
                 proc.StartInfo.FileName = "mongodump";
@@ -221,12 +220,30 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.RedirectStandardError = true;
+                
+                // Enable asynchronous reading for real-time output
+                proc.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        Console.WriteLine(e.Data);
+                    }
+                };
+                
+                proc.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        Console.Error.WriteLine(e.Data);
+                    }
+                };
+                
                 proc.Start();
-
-                result += proc.StandardOutput.ReadToEnd();
-                result += proc.StandardError.ReadToEnd();
-
-                Console.WriteLine(result);
+                
+                // Begin asynchronous reading
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+                
                 proc.WaitForExit();
             }
         }
