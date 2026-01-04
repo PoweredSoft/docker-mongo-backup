@@ -145,13 +145,18 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
         protected void ExecuteLinuxDump(string databaseName, string tempFileName)
         {
             var uri = mongoConfiguration.ConnectionString;
-            var command = $"mongodump --uri \"{uri}\" --db {databaseName} --archive=\"{tempFileName}\" --gzip";
 
             var result = "";
             using (var proc = new Process())
             {
-                proc.StartInfo.FileName = "/bin/bash";
-                proc.StartInfo.Arguments = "-c \" " + command + " \"";
+                proc.StartInfo.FileName = "mongodump";
+                proc.StartInfo.ArgumentList.Add("--uri");
+                proc.StartInfo.ArgumentList.Add(uri);
+                proc.StartInfo.ArgumentList.Add("--db");
+                proc.StartInfo.ArgumentList.Add(databaseName);
+                proc.StartInfo.ArgumentList.Add("--archive");
+                proc.StartInfo.ArgumentList.Add(tempFileName);
+                proc.StartInfo.ArgumentList.Add("--gzip");
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.RedirectStandardError = true;
