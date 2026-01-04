@@ -36,7 +36,7 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
 
         protected virtual IMongoClient GetDatabaseConnection()
         {
-            var mongoClient = new MongoClient(this.mongoConfiguration.GetConnectionString());
+            var mongoClient = new MongoClient(this.mongoConfiguration.ConnectionString);
             return mongoClient;
         }
 
@@ -106,7 +106,8 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
 
         protected void ExecuteWindowsDump(string databaseName, string tempFileName)
         {
-            var command = $"{mongoConfiguration.PathToMongoDump} --host {mongoConfiguration.Host} --username {mongoConfiguration.User} --password {mongoConfiguration.Password} --db {databaseName} --authenticationDatabase {mongoConfiguration.AuthenticatingDatabase} --archive={tempFileName} --gzip";
+            var uri = mongoConfiguration.ConnectionString;
+            var command = $"{mongoConfiguration.PathToMongoDump} --uri \"{uri}\" --db {databaseName} --archive=\"{tempFileName}\" --gzip";
 
             var batFilePath = Path.Combine(
                 Path.GetTempPath(),
@@ -143,7 +144,8 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
 
         protected void ExecuteLinuxDump(string databaseName, string tempFileName)
         {
-            var command = $"mongodump --host {mongoConfiguration.Host} --username {mongoConfiguration.User} --password {mongoConfiguration.Password} --db {databaseName} --authenticationDatabase {mongoConfiguration.AuthenticatingDatabase} --archive={tempFileName} --gzip";
+            var uri = mongoConfiguration.ConnectionString;
+            var command = $"mongodump --uri \"{uri}\" --db {databaseName} --archive=\"{tempFileName}\" --gzip";
 
             var result = "";
             using (var proc = new Process())
