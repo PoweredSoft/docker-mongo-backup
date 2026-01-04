@@ -104,10 +104,36 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
                 ExecuteLinuxDump(databaseName, tempFileName);
         }
 
-        protected void ExecuteWindowsDump(string databaseName, string tempFileName)
+        protected string BuildUriWithDatabase(string databaseName)
         {
             var uri = mongoConfiguration.ConnectionString;
-            var command = $"{mongoConfiguration.PathToMongoDump} --uri \"{uri}\" --db {databaseName} --archive=\"{tempFileName}\" --gzip";
+            
+            // Parse MongoDB URI: mongodb://[user:pass@]host[:port][/database][?options]
+            // or mongodb+srv://[user:pass@]host[/database][?options]
+            var queryIndex = uri.IndexOf('?');
+            var queryString = queryIndex >= 0 ? uri.Substring(queryIndex) : "";
+            var baseUri = queryIndex >= 0 ? uri.Substring(0, queryIndex) : uri;
+            
+            // Find the last '/' before any query parameters
+            var lastSlash = baseUri.LastIndexOf('/');
+            if (lastSlash >= 0)
+            {
+                // Replace existing database path
+                baseUri = baseUri.Substring(0, lastSlash + 1) + databaseName;
+            }
+            else
+            {
+                // Add database path
+                baseUri = baseUri + "/" + databaseName;
+            }
+            
+            return baseUri + queryString;
+        }
+
+        protected void ExecuteWindowsDump(string databaseName, string tempFileName)
+        {
+            var uri = BuildUriWithDatabase(databaseName);
+            var command = $"{mongoConfiguration.PathToMongoDump} --uri \"{uri}\" --archive=\"{tempFileName}\" --gzip";
 
             var batFilePath = Path.Combine(
                 Path.GetTempPath(),
@@ -144,7 +170,7 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
 
         protected void ExecuteLinuxDump(string databaseName, string tempFileName)
         {
-            var uri = mongoConfiguration.ConnectionString;
+            var uri = BuildUriWithDatabase(databaseName);
 
             var result = "";
             using (var proc = new Process())
@@ -152,8 +178,6 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
                 proc.StartInfo.FileName = "mongodump";
                 proc.StartInfo.ArgumentList.Add("--uri");
                 proc.StartInfo.ArgumentList.Add(uri);
-                proc.StartInfo.ArgumentList.Add("--db");
-                proc.StartInfo.ArgumentList.Add(databaseName);
                 proc.StartInfo.ArgumentList.Add("--archive");
                 proc.StartInfo.ArgumentList.Add(tempFileName);
                 proc.StartInfo.ArgumentList.Add("--gzip");
