@@ -14,9 +14,6 @@ pool:
 
 steps:
 
-- task: GitVersion@5
-  displayName: 'Git Version'
-  
 - task: Docker@2
   inputs:
     containerRegistry: 'PoweredSoftDockerHub'
@@ -25,4 +22,4 @@ steps:
     Dockerfile: 'PoweredSoft.Docker.MongoBackup/Dockerfile'
     tags: |
       latest
-      $(GitVersion.NugetVersion)
+      $(Build.SourceBranchName)
