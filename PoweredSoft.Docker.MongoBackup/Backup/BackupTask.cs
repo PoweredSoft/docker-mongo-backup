@@ -1,6 +1,7 @@
 ﻿using Ionic.Zip;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Clusters;
 using PoweredSoft.Docker.MongoBackup.Notifications;
 using PoweredSoft.Storage.Core;
 using System;
