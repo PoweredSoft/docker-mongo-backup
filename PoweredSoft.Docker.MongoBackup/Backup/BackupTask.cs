@@ -1,7 +1,6 @@
 ﻿using Ionic.Zip;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
-using MongoDB.Driver.Core.Clusters;
 using PoweredSoft.Docker.MongoBackup.Notifications;
 using PoweredSoft.Storage.Core;
 using System;
@@ -55,44 +54,11 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
             return ret;
         }
 
-        protected virtual async Task<bool> IsReplicaSetAsync(IMongoClient client)
-        {
-            try
-            {
-                // First check connection string for replica set indicators
-                var connectionString = mongoConfiguration.ConnectionString;
-                if (connectionString.Contains("replicaSet=", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    return true;
-                }
-                
-                // Wait for cluster to be discovered
-                await Task.Delay(1000);
-                
-                var cluster = client.Cluster;
-                var description = cluster.Description;
-                
-                // Check if cluster type is ReplicaSet
-                return description.Type == ClusterType.ReplicaSet;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Could not determine replica set status: {ex.Message}");
-                return false;
-            }
-        }
-
         public async Task<int> RunAsync()
         {
             var client = GetDatabaseConnection();
             Console.WriteLine("Fetching database names to backup...");
             var databaseNames = await GetDatabaseNamesAsync(client);
-            
-            var isReplicaSet = await IsReplicaSetAsync(client);
-            if (isReplicaSet)
-            {
-                Console.WriteLine("Replica set detected, will include oplog in backup");
-            }
 
             foreach (var databaseName in databaseNames)
             {
@@ -108,7 +74,7 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
 
                 Console.WriteLine($"attempting backup of {databaseName}");
                 var tempFileName = Path.GetTempFileName();
-                ExecuteDump(databaseName, tempFileName, isReplicaSet);
+                ExecuteDump(databaseName, tempFileName);
 
                 var destination = $"{backupOptions.BasePath}/{databaseName}_{DateTime.Now:yyyyMMdd_hhmmss_fff}.archive.gz";
                 using (var fs = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
@@ -130,12 +96,12 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
             return 0;
         }
 
-        protected void ExecuteDump(string databaseName, string tempFileName, bool includeOplog = false)
+        protected void ExecuteDump(string databaseName, string tempFileName)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                ExecuteWindowsDump(databaseName, tempFileName, includeOplog);
+                ExecuteWindowsDump(databaseName, tempFileName);
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                ExecuteLinuxDump(databaseName, tempFileName, includeOplog);
+                ExecuteLinuxDump(databaseName, tempFileName);
         }
 
         protected string BuildUriWithDatabase(string databaseName)
@@ -164,11 +130,10 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
             return baseUri + queryString;
         }
 
-        protected void ExecuteWindowsDump(string databaseName, string tempFileName, bool includeOplog = false)
+        protected void ExecuteWindowsDump(string databaseName, string tempFileName)
         {
             var uri = BuildUriWithDatabase(databaseName);
-            var oplogFlag = includeOplog ? " --oplog" : "";
-            var command = $"{mongoConfiguration.PathToMongoDump} --uri \"{uri}\" --archive=\"{tempFileName}\" --gzip{oplogFlag}";
+            var command = $"{mongoConfiguration.PathToMongoDump} --uri \"{uri}\" --archive=\"{tempFileName}\" --gzip";
 
             var batFilePath = Path.Combine(
                 Path.GetTempPath(),
@@ -203,7 +168,7 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
             }
         }
 
-        protected void ExecuteLinuxDump(string databaseName, string tempFileName, bool includeOplog = false)
+        protected void ExecuteLinuxDump(string databaseName, string tempFileName)
         {
             var uri = BuildUriWithDatabase(databaseName);
 
@@ -214,10 +179,6 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
                 proc.StartInfo.ArgumentList.Add(uri);
                 proc.StartInfo.ArgumentList.Add($"--archive={tempFileName}");
                 proc.StartInfo.ArgumentList.Add("--gzip");
-                if (includeOplog)
-                {
-                    proc.StartInfo.ArgumentList.Add("--oplog");
-                }
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.RedirectStandardError = true;
