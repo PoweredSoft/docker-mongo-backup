@@ -178,8 +178,7 @@ namespace PoweredSoft.Docker.MongoBackup.Backup
                 proc.StartInfo.FileName = "mongodump";
                 proc.StartInfo.ArgumentList.Add("--uri");
                 proc.StartInfo.ArgumentList.Add(uri);
-                proc.StartInfo.ArgumentList.Add("--archive");
-                proc.StartInfo.ArgumentList.Add(tempFileName);
+                proc.StartInfo.ArgumentList.Add($"--archive={tempFileName}");
                 proc.StartInfo.ArgumentList.Add("--gzip");
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.RedirectStandardOutput = true;
